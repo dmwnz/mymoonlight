@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>My Moonlight</title>
+    </head>
+
+    <body>
+        <h1>Available computers</h1>
+        <table id="tbl-computers" border="1">
+            <tr>
+                <th>id</th>
+                <th>name</th>
+                <th>gpu</th>
+                <th>ram</th>
+                <th>storage</th>
+                <th>region</th>
+                <th>ip</th>
+                <th>state</th>
+                <th>actions</th>
+            </tr>
+        </table>
+        <button onclick="refreshComputers()">refresh</button>
+    </body>
+
+    <script>
+        function createTd(tr, content='') {
+            td = document.createElement('td')
+            td.innerHTML = content
+            tr.appendChild(td)
+            return td
+        }
+        function bytesToGiB(bytes) {
+            return bytes / (1024*1024*1024)
+        }
+        async function changeMachineState(machine_id, command) {
+            disableButtons()
+            var response = await fetch(`https://api.paperspace.io/machines/${machine_id}/${command}`, {method: 'POST', headers: {'X-Api-Key': API_KEY}})
+            if ( Math.floor(status / 200) != 1 ) {
+                responseJSON = await response.json()
+                alert(responseJSON.error.message)
+            }
+            enableButtons()
+        }
+        function startMachine(machine_id) {
+            changeMachineState(machine_id, 'start')
+        }
+        function stopMachine(machine_id) {
+            changeMachineState(machine_id, 'stop')
+        }
+        function disableButtons() {
+            Array.from(document.getElementsByTagName('button')).forEach(e => e.disabled=true)
+        }
+        function enableButtons() {
+            Array.from(document.getElementsByTagName('button')).forEach(e => e.disabled=false)
+        }
+
+        async function refreshComputers() {
+            API_KEY=(new URLSearchParams(window.location.search)).get('api_key')
+            if (!API_KEY) {
+                alert('No API key')
+                return
+            }
+            disableButtons()
+            let response = await fetch('https://api.paperspace.io/machines/getMachines', {headers: {'X-Api-Key': API_KEY}})
+            machinesJSON = await response.json()
+
+            var table = document.getElementById('tbl-computers')
+            Array.from(document.getElementsByClassName('tr-computer')).forEach(e => table.removeChild(e))
+            machinesJSON.forEach(element => {
+                var tr = document.createElement('tr')
+                tr.className = 'tr-computer';
+
+                createTd(tr, element.id)
+                createTd(tr, element.name)
+                createTd(tr, element.gpu)
+                var ram=parseInt(element.ram)
+                createTd(tr, `${bytesToGiB(ram).toFixed()} GiB`)
+                var storageTotal=parseInt(element.storageTotal)
+                var storageUsed=parseInt(element.storageUsed)
+                createTd(tr, `${bytesToGiB(storageTotal).toFixed()} GiB (${((storageTotal-storageUsed)*100/storageTotal).toFixed()} % free)`)
+                createTd(tr, element.region)
+                var ip = createTd(tr, element.publicIpAddress)
+                var copy_ip = document.createElement('button')
+                copy_ip.onclick = () => navigator.clipboard.writeText(element.publicIpAddress)
+                copy_ip.innerHTML = 'copy'
+                ip.appendChild(copy_ip)
+                createTd(tr, element.state)
+                
+                var actions = createTd(tr)
+
+                var start = document.createElement('button')
+                start.onclick = () => startMachine(element.id)
+                start.innerHTML = 'start'
+                actions.appendChild(start)
+                
+                var stop = document.createElement('button')
+                stop.onclick = () => stopMachine(element.id)
+                stop.innerHTML = 'stop'
+                actions.appendChild(stop)
+
+                table.appendChild(tr)
+            });
+            enableButtons()
+        }
+
+        refreshComputers()
+    </script>
+
+</html>
