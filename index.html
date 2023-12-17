@@ -34,17 +34,24 @@
         }
         async function changeMachineState(machine_id, command) {
             disableButtons()
+            var ok = true
             var response = await fetch(`https://api.paperspace.io/machines/${machine_id}/${command}`, {method: 'POST', headers: {'X-Api-Key': API_KEY}})
-            if ( Math.floor(status / 200) != 1 ) {
+            if ( Math.floor(response.status / 200) != 1 ) {
                 responseJSON = await response.json()
                 alert(responseJSON.error.message)
+                ok = false
             }
             enableButtons()
+            return ok
         }
-        function startMachine(machine_id) {
-            changeMachineState(machine_id, 'start')
+        async function startMachine(machine_id) {
+            var changedState = await changeMachineState(machine_id, 'start')
+            if (changedState) {
+                alert('Start command sent. Please wait a few seconds for the machine to boot.')
+            }
+            await refreshComputers()
         }
-        function stopMachine(machine_id) {
+        async function stopMachine(machine_id) {
             changeMachineState(machine_id, 'stop')
         }
         function disableButtons() {
